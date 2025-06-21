@@ -2,7 +2,7 @@ import { GstdClient } from "./gstd";
 
 const main = async () => {
   const client = new GstdClient({
-    url: "https://joy.westeurope.cloudapp.azure.com",
+    url: "http://localhost:8080",
   });
   const pipelineName = "test-stream";
 
