@@ -11,9 +11,13 @@ services:
     environment:
       - GST_DEBUG=1
       - GSTD_HTTP_PORT=8080
-      - NODE_ENV=production
+      - GSTD_UNIX_SOCKET=/tmp/gstd.sock
+      - GSTD_ENABLE_HTTP=true
+      - GSTD_ENABLE_UNIX=false
+      - GSTD_EXTRA_FLAGS=
     volumes:
       - /dev:/dev:ro
+      - gstd-sockets:/tmp
     cap_add:
       - SYS_ADMIN
     security_opt:
@@ -36,3 +40,6 @@ services:
         reservations:
           memory: 256M
           cpus: "0.5"
+
+volumes:
+  gstd-sockets:
