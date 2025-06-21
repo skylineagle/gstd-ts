@@ -1,0 +1,38 @@
+version: "3.8"
+
+services:
+  gstd:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: gstd-ts:latest
+    ports:
+      - "8080:8080"
+    environment:
+      - GST_DEBUG=1
+      - GSTD_HTTP_PORT=8080
+      - NODE_ENV=production
+    volumes:
+      - /dev:/dev:ro
+    cap_add:
+      - SYS_ADMIN
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:noexec,nosuid,size=100m
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/pipelines"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
+        reservations:
+          memory: 256M
+          cpus: "0.5"

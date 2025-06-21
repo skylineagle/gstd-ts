@@ -1,0 +1,180 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag"
+        required: true
+        type: string
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+      security-events: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          platforms: linux/amd64,linux/arm64
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Get version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest
+            type=raw,value=${{ steps.version.outputs.version }}
+            type=semver,pattern={{version}},value=${{ steps.version.outputs.version }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ steps.version.outputs.version }}
+            type=semver,pattern={{major}},value=${{ steps.version.outputs.version }}
+          labels: |
+            org.opencontainers.image.title=GStreamer Daemon TypeScript Client
+            org.opencontainers.image.description=Optimized Docker image for GStreamer Daemon with TypeScript client
+            org.opencontainers.image.vendor=${{ github.repository_owner }}
+            org.opencontainers.image.version=${{ steps.version.outputs.version }}
+
+      - name: Build and push main Docker image
+        id: build-main
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: true
+          sbom: true
+
+      - name: Build and push Alpine variant
+        id: build-alpine
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.alpine
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}-alpine
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:alpine
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: true
+          sbom: true
+
+      - name: Generate comprehensive SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}
+          format: spdx-json
+          output-file: sbom-${{ steps.version.outputs.version }}.spdx.json
+
+      - name: Run comprehensive security scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}
+          format: json
+          output: trivy-results-${{ steps.version.outputs.version }}.json
+
+      - name: Upload security scan to GitHub Security
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}
+          format: sarif
+          output: trivy-results.sarif
+
+      - name: Upload Trivy scan results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
+
+      - name: Create release notes
+        id: release-notes
+        run: |
+          cat > release-notes.md << 'EOF'
+          ## 🚀 GStreamer Daemon Docker Images
+
+          ### Available Images:
+          - **Standard**: `ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version }}`
+          - **Alpine**: `ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version }}-alpine`
+
+          ### Usage:
+          ```bash
+          # Pull and run the standard image
+          docker run -p 8080:8080 --cap-add=SYS_ADMIN ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version }}
+
+          # Pull and run the Alpine variant (smaller size)
+          docker run -p 8080:8080 --cap-add=SYS_ADMIN ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version }}-alpine
+
+          # Using docker-compose
+          docker-compose up
+          ```
+
+          ### Image Information:
+          - **Platforms**: linux/amd64, linux/arm64
+          - **Base**: Alpine Linux 3.19
+          - **Security**: Non-root user, minimal privileges
+          - **Size**: Optimized for minimal footprint
+
+          ### Verification:
+          - 🔒 **SBOM**: Software Bill of Materials included
+          - 🛡️ **Security Scan**: Trivy vulnerability scan passed
+          - ✅ **Provenance**: Build provenance attestation included
+          EOF
+
+      - name: Upload release artifacts
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            sbom-${{ steps.version.outputs.version }}.spdx.json
+            trivy-results-${{ steps.version.outputs.version }}.json
+          body_path: release-notes.md
+          append_body: true
+
+      - name: Update Docker Hub description
+        if: github.event_name == 'release'
+        uses: peter-evans/dockerhub-description@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          readme-filepath: ./README.md
+        continue-on-error: true

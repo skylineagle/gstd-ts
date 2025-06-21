@@ -1,0 +1,1012 @@
+openapi: 3.0.1
+info:
+  title: GStreamer Daemon HTTP API
+  version: 1.0.0
+  description: |
+    This specification describes the HTTP API for the GStreamer Daemon (gstd),
+    allowing creation and control of GStreamer pipelines via HTTP.
+
+    All responses follow the Gstd response format with code, description, and response fields.
+servers:
+  - url: http://{address}:{port}
+    description: Default gstd HTTP server
+    variables:
+      address:
+        default: 127.0.0.1
+        description: IP address where gstd listens
+      port:
+        default: "5000"
+        description: TCP port where gstd listens
+
+paths:
+  /pipelines:
+    get:
+      summary: List all pipelines
+      responses:
+        "200":
+          description: A list of pipelines
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PipelineListResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+    post:
+      summary: Create a new pipeline
+      parameters:
+        - in: query
+          name: name
+          required: true
+          schema:
+            type: string
+          description: The name to assign to the new pipeline
+        - in: query
+          name: description
+          required: true
+          schema:
+            type: string
+          description: GST launch syntax describing the pipeline
+      responses:
+        "201":
+          description: Pipeline created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+    delete:
+      summary: Delete a pipeline
+      parameters:
+        - in: query
+          name: name
+          required: true
+          schema:
+            type: string
+          description: The name of the pipeline to delete
+      responses:
+        "200":
+          description: Pipeline deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+        "404":
+          description: Pipeline not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+
+  /pipelines/{pipelineName}/graph:
+    get:
+      summary: Get pipeline graph in GraphViz dot format
+      parameters:
+        - $ref: "#/components/parameters/pipelineName"
+      responses:
+        "200":
+          description: Pipeline graph (JSON-wrapped dot)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+        "404":
+          description: Pipeline not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+
+  /pipelines/{pipelineName}/elements:
+    get:
+      summary: List all elements in a pipeline
+      parameters:
+        - $ref: "#/components/parameters/pipelineName"
+      responses:
+        "200":
+          description: List of elements
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/GstdResponse"
+                  - type: object
+                    properties:
+                      response:
+                        type: object
+                        properties:
+                          nodes:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                name:
+                                  type: string
+                              required:
+                                - name
+                        required:
+                          - nodes
+                    required:
+                      - response
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+        "404":
+          description: Pipeline not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+
+  /pipelines/{pipelineName}/elements/{elementName}/properties:
+    get:
+      summary: List properties of an element
+      parameters:
+        - $ref: "#/components/parameters/pipelineName"
+        - $ref: "#/components/parameters/elementName"
+      responses:
+        "200":
+          description: List of properties
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/GstdResponse"
+                  - type: object
+                    properties:
+                      response:
+                        type: object
+                        properties:
+                          nodes:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                name:
+                                  type: string
+                              required:
+                                - name
+                        required:
+                          - nodes
+                    required:
+                      - response
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+        "404":
+          description: Pipeline or element not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+
+  /pipelines/{pipelineName}/elements/{elementName}/properties/{propertyName}:
+    get:
+      summary: Get a property's current value
+      parameters:
+        - $ref: "#/components/parameters/pipelineName"
+        - $ref: "#/components/parameters/elementName"
+        - $ref: "#/components/parameters/propertyName"
+      responses:
+        "200":
+          description: The value of the property
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/GstdResponse"
+                  - type: object
+                    properties:
+                      response:
+                        type: object
+                        properties:
+                          name:
+                            type: string
+                          value:
+                            type: string
+                          param:
+                            type: object
+                            properties:
+                              description:
+                                type: string
+                              type:
+                                type: string
+                              access:
+                                type: string
+                            required:
+                              - description
+                              - type
+                              - access
+                        required:
+                          - name
+                          - value
+                          - param
+                    required:
+                      - response
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+        "404":
+          description: Pipeline, element, or property not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+    put:
+      summary: Set a property's value
+      parameters:
+        - $ref: "#/components/parameters/pipelineName"
+        - $ref: "#/components/parameters/elementName"
+        - $ref: "#/components/parameters/propertyName"
+        - in: query
+          name: name
+          required: true
+          schema:
+            type: string
+          description: The new value for the property
+      responses:
+        "200":
+          description: Property set
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+        "404":
+          description: Pipeline, element, or property not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+
+  /pipelines/{pipelineName}/bus/message:
+    get:
+      summary: Read messages from the pipeline bus
+      parameters:
+        - $ref: "#/components/parameters/pipelineName"
+      responses:
+        "200":
+          description: Bus messages
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+        "404":
+          description: Pipeline not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+
+  /pipelines/{pipelineName}/elements/{elementName}/signals:
+    get:
+      summary: List available signals on an element
+      parameters:
+        - $ref: "#/components/parameters/pipelineName"
+        - $ref: "#/components/parameters/elementName"
+      responses:
+        "200":
+          description: List of signals
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/GstdResponse"
+                  - type: object
+                    properties:
+                      response:
+                        type: object
+                        properties:
+                          nodes:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                name:
+                                  type: string
+                              required:
+                                - name
+                        required:
+                          - nodes
+                    required:
+                      - response
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+        "404":
+          description: Pipeline or element not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+
+  /pipelines/{pipelineName}/elements/{elementName}/signals/{signalName}/callback:
+    get:
+      summary: Connect to a signal callback
+      parameters:
+        - $ref: "#/components/parameters/pipelineName"
+        - $ref: "#/components/parameters/elementName"
+        - $ref: "#/components/parameters/signalName"
+      responses:
+        "200":
+          description: Signal connected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+        "404":
+          description: Pipeline, element, or signal not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+
+  /pipelines/{pipelineName}/elements/{elementName}/signals/{signalName}/disconnect:
+    get:
+      summary: Disconnect a signal callback
+      parameters:
+        - $ref: "#/components/parameters/pipelineName"
+        - $ref: "#/components/parameters/elementName"
+        - $ref: "#/components/parameters/signalName"
+      responses:
+        "200":
+          description: Signal disconnected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+        "404":
+          description: Pipeline, element, or signal not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+
+  /pipelines/{pipelineName}/event:
+    post:
+      summary: Send an event (EOS, flush_start, flush_stop)
+      parameters:
+        - $ref: "#/components/parameters/pipelineName"
+        - in: query
+          name: name
+          required: true
+          schema:
+            type: string
+            enum: [eos, flush_start, flush_stop]
+          description: Type of event to send
+      responses:
+        "200":
+          description: Event posted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+        "404":
+          description: Pipeline not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+    put:
+      summary: Send a seek event
+      parameters:
+        - $ref: "#/components/parameters/pipelineName"
+        - in: query
+          name: name
+          required: true
+          schema:
+            type: string
+            enum: [seek]
+          description: Must be "seek"
+        - in: query
+          name: description
+          required: true
+          schema:
+            type: string
+          description: >
+            A space-delimited string of
+            rate format flags start-type start end-type end
+      responses:
+        "200":
+          description: Seek event posted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+        "404":
+          description: Pipeline not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+
+  /pipelines/{pipelineName}/state:
+    put:
+      summary: Change pipeline state
+      parameters:
+        - $ref: "#/components/parameters/pipelineName"
+        - in: query
+          name: name
+          required: true
+          schema:
+            type: string
+            enum: ["playing", "paused", "null"]
+          description: Target state
+      responses:
+        "200":
+          description: State changed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+        "404":
+          description: Pipeline not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+
+  /pipelines/{pipelineName}/verbose:
+    put:
+      summary: Enable or disable verbose mode on a pipeline
+      parameters:
+        - $ref: "#/components/parameters/pipelineName"
+        - in: query
+          name: value
+          required: true
+          schema:
+            type: boolean
+          description: true to enable, false to disable
+      responses:
+        "200":
+          description: Verbose flag set
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+        "404":
+          description: Pipeline not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+
+  /debug/enable:
+    put:
+      summary: Enable or disable the debug subsystem
+      parameters:
+        - in: query
+          name: value
+          required: true
+          schema:
+            type: boolean
+          description: true to enable, false to disable
+      responses:
+        "200":
+          description: Debug enabled/disabled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+
+  /debug/reset:
+    put:
+      summary: Reset debug thresholds
+      parameters:
+        - in: query
+          name: value
+          required: true
+          schema:
+            type: boolean
+          description: true to reset thresholds
+      responses:
+        "200":
+          description: Debug thresholds reset
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+
+  /debug/threshold:
+    put:
+      summary: Set debug message threshold
+      parameters:
+        - in: query
+          name: value
+          required: true
+          schema:
+            type: integer
+            enum: [0, 1, 2, 3, 4, 5, 6, 7, 9]
+          description: >
+            0=none,1=ERROR,2=WARNING,…,9=MEMDUMP
+      responses:
+        "200":
+          description: Threshold set
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+
+  /debug/color:
+    put:
+      summary: Enable or disable debug log color
+      parameters:
+        - in: query
+          name: value
+          required: true
+          schema:
+            type: boolean
+          description: true to enable color, false to disable
+      responses:
+        "200":
+          description: Color flag set
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+
+  /pipelines/{pipelineName}/bus/timeout:
+    put:
+      summary: Set pipeline bus timeout
+      parameters:
+        - $ref: "#/components/parameters/pipelineName"
+        - in: query
+          name: name
+          required: true
+          schema:
+            type: integer
+          description: Timeout in nanoseconds (-1 for infinite), mistyped as name in the API
+      responses:
+        "200":
+          description: Timeout set
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+        "404":
+          description: Pipeline not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+
+  /pipelines/{pipelineName}/bus/types:
+    put:
+      summary: Filter bus message types
+      parameters:
+        - $ref: "#/components/parameters/pipelineName"
+        - in: query
+          name: name
+          required: true
+          schema:
+            type: string
+          description: Name of the bus message filter, mistyped as name in the API
+      responses:
+        "200":
+          description: Filter applied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+        "404":
+          description: Pipeline not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+
+  /pipelines/{pipelineName}/elements/{elementName}/signals/{signalName}/timeout:
+    put:
+      summary: Set signal wait timeout
+      parameters:
+        - $ref: "#/components/parameters/pipelineName"
+        - $ref: "#/components/parameters/elementName"
+        - $ref: "#/components/parameters/signalName"
+        - in: query
+          name: timeout
+          required: true
+          schema:
+            type: integer
+          description: Timeout in milliseconds (or other units as supported)
+      responses:
+        "200":
+          description: Signal timeout applied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+        "404":
+          description: Pipeline, element, or signal not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GstdErrorResponse"
+
+components:
+  schemas:
+    GstdResponse:
+      type: object
+      required:
+        - code
+        - description
+        - response
+      properties:
+        code:
+          type: integer
+          description: Status code (0 for success, non-zero for errors)
+          example: 0
+        description:
+          type: string
+          description: Human-readable description of the status
+          example: "Success"
+        response:
+          type: object
+          description: The actual response data from the command
+          additionalProperties: true
+
+    PipelineListResponse:
+      type: object
+      required:
+        - code
+        - description
+        - response
+      properties:
+        code:
+          type: integer
+          description: Status code (0 for success, non-zero for errors)
+          example: 0
+        description:
+          type: string
+          description: Human-readable description of the status
+          example: "Success"
+        response:
+          type: object
+          description: Pipeline list containing nodes with names
+          properties:
+            nodes:
+              type: array
+              description: Array of pipeline nodes
+              items:
+                type: object
+                properties:
+                  name:
+                    type: string
+                    description: Pipeline name
+                required:
+                  - name
+          required:
+            - nodes
+
+    GstdErrorResponse:
+      type: object
+      required:
+        - code
+        - description
+      properties:
+        code:
+          type: integer
+          description: Error code (non-zero value)
+          example: -1
+        description:
+          type: string
+          description: Human-readable error description
+          example: "Pipeline not found"
+        response:
+          type: object
+          description: Additional error details (may be null or empty)
+          additionalProperties: true
+          nullable: true
+
+    ElementProperty:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Property name
+        value:
+          type: string
+          description: Current property value
+        param_spec:
+          type: object
+          properties:
+            blurb:
+              type: string
+              description: Property description
+            type:
+              type: string
+              description: Property type (e.g., gchararray, gint, gboolean)
+            access:
+              type: string
+              description: Access flags for the property
+            construct:
+              type: boolean
+              description: Whether this is a construct property
+
+  parameters:
+    pipelineName:
+      name: pipelineName
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Unique name of the pipeline
+    elementName:
+      name: elementName
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Unique name of the element
+    propertyName:
+      name: propertyName
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Name of the element property
+    signalName:
+      name: signalName
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Name of the element signal

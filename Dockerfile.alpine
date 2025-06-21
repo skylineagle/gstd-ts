@@ -1,0 +1,87 @@
+# Ultra-lightweight GStreamer Daemon with TypeScript client
+FROM alpine:3.19 AS base
+
+RUN apk add --no-cache ca-certificates tzdata
+
+FROM base AS builder
+
+RUN apk add --no-cache \
+    build-base \
+    git \
+    autoconf \
+    automake \
+    libtool \
+    pkgconfig \
+    gstreamer-dev \
+    gst-plugins-base-dev \
+    glib-dev \
+    json-glib-dev \
+    ncurses-dev \
+    libdaemon-dev \
+    jansson-dev \
+    libsoup-dev \
+    libedit-dev
+
+WORKDIR /tmp
+RUN git clone --depth 1 --single-branch --branch master https://github.com/RidgeRun/gstd-1.x.git gstd
+
+WORKDIR /tmp/gstd
+RUN ./autogen.sh && \
+    ./configure --prefix=/usr/local --enable-shared=no --enable-static=yes --disable-gtk-doc && \
+    make -j$(nproc) CFLAGS="-Os -ffunction-sections -fdata-sections" LDFLAGS="-Wl,--gc-sections" && \
+    strip --strip-unneeded /tmp/gstd/gstd/.libs/gstd && \
+    strip --strip-unneeded /tmp/gstd/client/.libs/gst-client
+
+FROM node:21-alpine AS node-deps
+RUN npm install -g bun@latest
+
+FROM base AS runtime
+
+RUN apk add --no-cache \
+    gstreamer=~1.22 \
+    gst-plugins-base=~1.22 \
+    gst-plugins-good=~1.22 \
+    glib \
+    json-glib \
+    ncurses-libs \
+    libdaemon \
+    jansson \
+    libsoup \
+    libedit \
+    curl \
+    bash \
+    && rm -rf /var/cache/apk/* /tmp/*
+
+COPY --from=node-deps /usr/local/bin/bun /usr/local/bin/bun
+COPY --from=builder /tmp/gstd/gstd/.libs/gstd /usr/local/bin/gstd
+COPY --from=builder /tmp/gstd/client/.libs/gst-client /usr/local/bin/gst-client
+
+RUN addgroup -g 1001 -S gstd && \
+    adduser -S -D -H -u 1001 -s /sbin/nologin -G gstd gstd
+
+WORKDIR /app
+
+COPY package.json bun.lock* ./
+RUN bun install --production --frozen-lockfile --no-cache && \
+    rm -rf ~/.bun/install/cache ~/.bun/install/global
+
+COPY --chown=gstd:gstd entrypoint.sh ./
+COPY --chown=gstd:gstd *.ts *.yml ./
+
+RUN bun run generate && \
+    chmod +x entrypoint.sh && \
+    rm -rf /tmp/* /var/tmp/*
+
+USER gstd
+
+EXPOSE 8080
+
+ENV GST_DEBUG=0 \
+    GSTD_HTTP_PORT=8080 \
+    NODE_ENV=production \
+    BUN_RUNTIME_TRANSPILER_CACHE_PATH=/tmp
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=2 \
+    CMD curl -f http://localhost:${GSTD_HTTP_PORT}/pipelines || exit 1
+
+ENTRYPOINT ["./entrypoint.sh"] 
