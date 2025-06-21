@@ -10,9 +10,6 @@ TypeScript client for the RidgeRun GStreamer Daemon HTTP API.
 # Pull and run the latest image
 docker run -p 8080:8080 --cap-add=SYS_ADMIN ghcr.io/OWNER/gstd:latest
 
-# Or use the smaller Alpine variant
-docker run -p 8080:8080 --cap-add=SYS_ADMIN ghcr.io/OWNER/gstd:alpine
-
 # Using docker-compose (recommended)
 docker-compose up
 ```
@@ -27,9 +24,9 @@ docker-compose up
 docker-compose up
 ```
 
-## 📦 Docker Images
+## 📦 Docker Image
 
-We provide two optimized Docker variants:
+We provide an optimized Docker image:
 
 ### Standard Image (`latest`)
 
@@ -38,14 +35,7 @@ We provide two optimized Docker variants:
 - **Platforms**: linux/amd64, linux/arm64
 - **Use case**: General purpose, full feature set
 
-### Alpine Variant (`alpine`)
-
-- **Base**: Alpine Linux 3.19 (ultra-optimized)
-- **Size**: ~200-300MB
-- **Platforms**: linux/amd64, linux/arm64
-- **Use case**: Minimal footprint, production deployments
-
-Both images include:
+The image includes:
 
 - ✅ GStreamer Daemon (gstd) built from source
 - ✅ Complete GStreamer plugin suite
@@ -85,7 +75,7 @@ docker run ghcr.io/OWNER/gstd:latest client-only
 - **Features**:
   - Multi-platform builds (amd64, arm64)
   - Publishes to GitHub Container Registry
-  - Builds both standard and Alpine variants
+  - Multi-platform builds (amd64, arm64)
   - Security scanning with Trivy
   - SBOM generation
   - Build caching for faster builds
@@ -105,7 +95,7 @@ docker run ghcr.io/OWNER/gstd:latest client-only
 
 - **Triggers**: PRs affecting Docker files, manual dispatch
 - **Features**:
-  - Multi-variant testing (standard + Alpine)
+  - Comprehensive functionality testing
   - Functionality testing (gstd startup, API endpoints)
   - Security validation (non-root, read-only filesystem)
   - Docker Compose validation
@@ -117,7 +107,7 @@ Images are published to GitHub Container Registry:
 
 - **Registry**: `ghcr.io`
 - **Repository**: `ghcr.io/OWNER/gstd`
-- **Tags**: `latest`, `alpine`, version tags (e.g., `v1.0.0`)
+- **Tags**: `latest`, version tags (e.g., `v1.0.0`)
 
 ## 📊 Development
 
@@ -134,11 +124,8 @@ bun run generate
 ### Building Images
 
 ```bash
-# Build standard image
+# Build image
 docker build -t gstd:latest .
-
-# Build Alpine variant
-docker build -f Dockerfile.alpine -t gstd:alpine .
 
 # Build with script (includes optimizations)
 ./build.sh

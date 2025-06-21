@@ -82,23 +82,6 @@ jobs:
           provenance: true
           sbom: true
 
-      - name: Build and push Alpine variant
-        id: build-alpine
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./Dockerfile.alpine
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}-alpine
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:alpine
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          provenance: true
-          sbom: true
-
       - name: Generate comprehensive SBOM
         uses: anchore/sbom-action@v0
         with:
@@ -129,19 +112,15 @@ jobs:
         id: release-notes
         run: |
           cat > release-notes.md << 'EOF'
-          ## 🚀 GStreamer Daemon Docker Images
+          ## 🚀 GStreamer Daemon Docker Image
 
-          ### Available Images:
+          ### Available Image:
           - **Standard**: `ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version }}`
-          - **Alpine**: `ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version }}-alpine`
 
           ### Usage:
           ```bash
-          # Pull and run the standard image
+          # Pull and run the image
           docker run -p 8080:8080 --cap-add=SYS_ADMIN ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version }}
-
-          # Pull and run the Alpine variant (smaller size)
-          docker run -p 8080:8080 --cap-add=SYS_ADMIN ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version }}-alpine
 
           # Using docker-compose
           docker-compose up

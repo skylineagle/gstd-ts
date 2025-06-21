@@ -6,7 +6,6 @@ readonly IMAGE_NAME="gstd-ts"
 readonly TAG="latest"
 
 echo "🚀 Building optimized Docker image: $IMAGE_NAME:$TAG"
-echo "📦 Using Alpine Linux for minimal size"
 echo "🔒 Non-root user for security"
 echo "⚡ Static linking for smaller binaries"
 

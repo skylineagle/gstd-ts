@@ -73,22 +73,6 @@ jobs:
           build-args: |
             BUILDKIT_INLINE_CACHE=1
 
-      - name: Build and push Alpine variant
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./Dockerfile.alpine
-          platforms: linux/amd64,linux/arm64
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:alpine
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:alpine-latest
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          build-args: |
-            BUILDKIT_INLINE_CACHE=1
-
       - name: Generate SBOM
         if: github.event_name != 'pull_request'
         uses: anchore/sbom-action@v0
