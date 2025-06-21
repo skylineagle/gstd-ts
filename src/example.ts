@@ -7,10 +7,6 @@ const main = async () => {
   const pipelineName = "test-stream";
 
   try {
-    // await client.pipelineCreate(
-    //   pipelineName,
-    //   "videotestsrc is-live=true ! videoconvert ! x264enc tune=zerolatency bitrate=2000 speed-preset=superfast ! rtspclientsink location=rtsp://joy.westeurope.cloudapp.azure.com:8554/mystream"
-    // );
     await client.pipelineCreate(
       "test-stream",
       "rtpbin name=rtpbin videotestsrc is-live=true ! videoconvert ! x264enc tune=zerolatency bitrate=512 speed-preset=superfast ! rtph264pay ! rtpbin.send_rtp_sink_0 rtpbin.send_rtp_src_0 ! udpsink host=127.0.0.1 port=5000 async=false rtpbin.send_rtcp_src_0 ! udpsink host=127.0.0.1 port=5001 sync=false async=false udpsrc port=5005 ! rtpbin.recv_rtcp_sink_0"
